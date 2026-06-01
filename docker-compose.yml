@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: poise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-poise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-poise_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-poise}
+    ports:
+      - "5632:5432"   # 宿主 5632（避开已占用的 5432/5433/5532），容器内部仍走 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-poise} -d ${POSTGRES_DB:-poise}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: poise-redis
+    restart: unless-stopped
+    ports:
+      - "6679:6379"   # 宿主 6679（避开已占用的 6379/6479/6380），容器内部仍走 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    image: poise-cfls-api:dev
+    container_name: poise-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8001:8000"   # 宿主 8001（避开 flash-mcp-gateway 占用的 8000）
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn poise.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  celery-worker:
+    image: poise-cfls-api:dev
+    container_name: poise-celery-worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+    command: celery -A poise.core.celery_app:celery_app worker --loglevel=info -Q default,optimize
+
+  celery-beat:
+    image: poise-cfls-api:dev
+    container_name: poise-celery-beat
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+    command: celery -A poise.core.celery_app:celery_app beat --loglevel=info
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: poise-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm dev
+
+volumes:
+  postgres_data:

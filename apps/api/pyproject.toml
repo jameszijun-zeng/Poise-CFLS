@@ -1,0 +1,82 @@
+[project]
+name = "poise"
+version = "0.1.0"
+description = "稳盈 / Poise · Cash Forecasting & Liquidity Strategy Agent · API"
+requires-python = ">=3.11"
+dependencies = [
+    # 核心（Phase 0+）—— 轻量、可快速安装，保证服务能起
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.0",
+    "sqlalchemy>=2.0.35",
+    "alembic>=1.13.3",
+    "psycopg[binary]>=3.2.3",
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=4.2.0",
+    "python-multipart>=0.0.12",
+    "celery>=5.4.0",
+    "redis>=5.1.0",
+    "openai>=1.54.0",
+    "httpx>=0.27.2",
+    "structlog>=24.4.0",
+]
+
+[project.optional-dependencies]
+# Phase 3 决策引擎核心依赖：pulp（建模）+ highspy（求解后端）+ numpy（highspy 间接依赖）
+# 体积可控 ~20MB，在受限网络下基本能一次过。
+ml = [
+    "pulp>=3.0",
+    "highspy>=1.7.2",
+    "numpy>=2.0",
+]
+# Phase 2 高级统计预测才会用到的重型科学栈；当前 Phase 2 用纯 Decimal 实现，
+# 暂不安装。若未来引入 ETS/ARIMA 等，再切到 [ml-stats] extras。
+ml-stats = [
+    "pandas>=2.2.3",
+    "statsmodels>=0.14.4",
+]
+dev = [
+    # 容器内运行测试需要的最小集合（避免在受限网络下卡住）
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.2",
+]
+lint = [
+    # 静态分析工具：体积大、wheel 在国内 CDN 不稳定；
+    # 仅 CI（GitHub runner，国外网络）与本地 host 安装。
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
+    "types-python-jose",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["poise"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*" = ["E", "F", "N"]
+"tests/*" = ["B", "N"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers -ra"

@@ -1,0 +1,16 @@
+{
+  "name": "poise-cfls",
+  "private": true,
+  "version": "0.1.0",
+  "description": "稳盈 / Poise · Cash Forecasting & Liquidity Strategy Agent",
+  "scripts": {
+    "dev:web": "pnpm --filter @poise/web dev",
+    "build:web": "pnpm --filter @poise/web build",
+    "lint:web": "pnpm --filter @poise/web lint",
+    "typecheck:web": "pnpm --filter @poise/web typecheck"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

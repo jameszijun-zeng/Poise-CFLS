@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* highlight.js Atom One Dark 主题（仅在 .markdown-body code 内生效，避免全局污染） */
+@import "highlight.js/styles/atom-one-dark.css";
+
+@layer base {
+  html, body { @apply h-full; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+}
+
+@layer components {
+  /* Markdown 富文本通用规则 —— 数字等宽（金额/百分比对齐美观） */
+  .markdown-body {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 表格 sticky header 工作前提：外层容器有最大高度 + overflow-y-auto */
+  .markdown-body .table-scroll {
+    max-height: 24rem;
+    overflow-y: auto;
+  }
+  .markdown-body .table-scroll thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* mermaid 渲染出来的 svg 宽度自适应 */
+  .markdown-body svg[id^="m"] {
+    max-width: 100%;
+    height: auto;
+  }
+}
