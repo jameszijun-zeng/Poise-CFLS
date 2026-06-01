@@ -28,6 +28,10 @@ htmlcov/
 dist/
 build/
 
+# Celery
+celerybeat-schedule*
+*.pid
+
 # Node
 node_modules/
 .next/
