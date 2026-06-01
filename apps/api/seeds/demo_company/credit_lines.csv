@@ -1,0 +1,4 @@
+entity_code,instrument_code,bank_name,code,limit_amount,used_amount,rate_annual_pct,expires_at,notes
+DEMO,LOAN-WC,中国工商银行,WC-ICBC-001,80000000.00,0.00,4.35,2027-05-30,流贷主授信
+DEMO,BILL-DSC,招商银行,BILL-CMB-001,30000000.00,5000000.00,4.80,2027-03-31,票据贴现额度
+DEMO,ACCEPT-BNK,中国建设银行,ACC-CCB-001,20000000.00,0.00,5.20,2026-12-31,银承额度

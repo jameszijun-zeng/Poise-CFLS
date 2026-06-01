@@ -1,0 +1,14 @@
+entity_code,code,name,kind,liquidity_tier,rate_annual_pct,tenor_options_weeks,min_amount,max_amount,redeemable,redeem_cost_pct,counterparty,whitelisted,finance_priority,currency,notes
+DEMO,MMF-A,工银货币基金,invest,cash,2.30,0,1000000,,True,0.00,中国工商银行,True,,CNY,T+0/T+1赎回
+DEMO,AGREE-DEP,招商协定存款,invest,cash,1.95,0,5000000,,True,0.00,招商银行,True,,CNY,活期协定
+DEMO,GC001-O,隔夜逆回购GC001,invest,cash,2.05,1,1000000,,False,0.00,上交所,True,,CNY,T+1到期
+DEMO,NOTICE-7D,7天通知存款,invest,stable,2.55,1,5000000,,False,0.00,中国建设银行,True,,CNY,7天起
+DEMO,TD-14W,14天定期存款,invest,stable,2.65,2,5000000,,False,0.20,招商银行,True,,CNY,
+DEMO,TD-28W,28天定期存款,invest,stable,2.80,4,5000000,,False,0.30,中国工商银行,True,,CNY,
+DEMO,CASH-MGMT,现金管理类理财,invest,stable,2.90,2,3000000,,True,0.05,招商银行,True,,CNY,T+1赎回
+DEMO,TD-3M,3月定期存款,invest,yield,3.10,12,10000000,,False,0.50,中国建设银行,True,,CNY,锁定期12周
+DEMO,CD-6M,6月大额存单,invest,yield,3.30,24,10000000,,False,0.50,中国工商银行,True,,CNY,可质押不可提前支取
+DEMO,SD-3M,3月结构性存款,invest,yield,3.40,12,5000000,,False,1.00,招商银行,True,,CNY,挂钩指数保本
+DEMO,LOAN-WC,流动资金贷款,finance,,4.35,0,1000000,,False,0.00,中国工商银行,True,1,CNY,授信下随借随还
+DEMO,BILL-DSC,商业票据贴现,finance,,4.80,12,5000000,,False,0.00,招商银行,True,2,CNY,按月计息
+DEMO,ACCEPT-BNK,银行承兑汇票,finance,,5.20,12,5000000,,False,0.00,中国建设银行,True,3,CNY,需保证金

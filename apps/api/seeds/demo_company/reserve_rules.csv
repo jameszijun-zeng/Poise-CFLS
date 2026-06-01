@@ -1,0 +1,2 @@
+entity_code,rule_type,fixed_value,rolling_weeks,notes
+DEMO,rolling_coverage,,4,最低备付=未来4周刚性支出之和

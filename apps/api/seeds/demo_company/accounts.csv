@@ -1,0 +1,4 @@
+entity_code,code,name,bank_name,account_number,currency,account_type
+DEMO,ACC-BASIC,基本户,中国工商银行,6222********0001,CNY,basic
+DEMO,ACC-GENERAL,一般户,招商银行,6225********0002,CNY,general
+DEMO,ACC-COLLECT,收款专户,中国建设银行,6217********0003,CNY,special

@@ -1,0 +1,4 @@
+entity_code,account_code,as_of_date,balance,available_balance,restricted_balance,currency,source
+DEMO,ACC-BASIC,2026-05-30,100000000.00,100000000.00,0.00,CNY,eod
+DEMO,ACC-GENERAL,2026-05-30,30000000.00,30000000.00,0.00,CNY,eod
+DEMO,ACC-COLLECT,2026-05-30,20000000.00,20000000.00,0.00,CNY,eod
