@@ -13,7 +13,8 @@
 - [开发计划 V0.1](doc/稳盈Poise_开发计划_V0.1.md)
 - **[用户手册](doc/用户手册.md)** —— 给财资人员
 - **[运维手册](doc/运维手册.md)** —— 给运维
-- **[CSV 数据契约](doc/数据契约_CSV.md)** —— 接入真实数据
+- **[CSV 数据契约](doc/数据契约_CSV.md)** —— 字段定义
+- **[适配器接入指南](doc/适配器接入指南.md)** —— 给客户 IT 接入 ERP / 银企 / Excel
 
 ## 🏗️ 仓库结构
 
@@ -67,6 +68,18 @@ bash scripts/smoke.sh
 默认账号：`admin / treasurer / analyst / viewer`，密码 `Poise@2026`。
 
 常用命令见 `make help`。
+
+## 📥 接入真实数据（3 种路径）
+
+| 路径 | 适合谁 | 入口 |
+|---|---|---|
+| **CSV 上传** | 财务自己出 7 个 CSV | `/data` 页 → 各表「📤 CSV 上传」，含校验预览 |
+| **Excel 上传** | 财务一个 .xlsx 7 sheet | `POST /api/v1/data/upload-excel` |
+| **自定义 Adapter** | 客户 IT 接 ERP / 银企 API | 实现 `SourceAdapter` 子类 + `register()`，见 [适配器接入指南](doc/适配器接入指南.md) |
+
+字段定义见 [数据契约](doc/数据契约_CSV.md)。  
+内置 adapter：`csv_directory` / `excel_workbook` / `example_erp_stub`（模板）。
+查列表：`GET /api/v1/data/adapters`。
 
 ## 🎯 核心闭环
 

@@ -357,6 +357,74 @@ def _import_reserve_rules(db: Session, rows: list[dict[str, Any]], summary: Impo
 # ----- 顶层入口 -----
 
 
+def import_from_adapter(
+    db: Session,
+    adapter_name: str,
+    adapter_kwargs: dict[str, Any],
+    *,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+) -> ImportSummary:
+    """通用入口：按 adapter 名称拉取 CanonicalDataset 后落库。
+
+    新数据源接入：实现一个 SourceAdapter 子类 + register()，本函数立即可用。
+    """
+    from poise.data_integration.adapters import get_adapter
+
+    adapter = get_adapter(adapter_name)
+    ds = adapter.fetch(**adapter_kwargs)
+
+    summary = ImportSummary()
+    _import_entities(db, ds.entities, summary)
+    _import_accounts(db, ds.accounts, summary)
+    _import_instruments(db, ds.instruments, summary)
+    _import_credit_lines(db, ds.credit_lines, summary)
+    _import_reserve_rules(db, ds.reserve_rules, summary)
+    _import_balances(db, ds.balances, summary)
+
+    # 取最早 as_of 作为 anchor
+    anchor = None
+    if ds.balances:
+        try:
+            dates = [qg.parse_date(b.get("as_of_date")) for b in ds.balances if b.get("as_of_date")]
+            if dates:
+                anchor = qg.week_anchor_from_seed(min(d for d in dates if d is not None))
+        except Exception:
+            pass
+    if anchor is None:
+        from datetime import datetime
+        anchor = qg.week_anchor_from_seed(datetime.now().date())
+
+    _import_cashflows(db, ds.cashflows, anchor, summary)
+
+    summary.ok = not any(i.severity == "error" for i in summary.issues)
+
+    record_event(
+        db,
+        actor_user_id=actor_user_id, actor_role=actor_role,
+        event_type="data.adapter_import",
+        payload={
+            "adapter": adapter_name, "adapter_kwargs": _safe_kwargs(adapter_kwargs),
+            "imported": summary.imported, "skipped": summary.skipped,
+            "error_count": sum(1 for i in summary.issues if i.severity == "error"),
+        },
+        notes=f"adapter={adapter_name} totals={ds.summary()}",
+    )
+    db.commit()
+    return summary
+
+
+def _safe_kwargs(kw: dict[str, Any]) -> dict[str, Any]:
+    """脱敏 adapter_kwargs 中的连接串/密码等敏感字段。"""
+    out = {}
+    for k, v in kw.items():
+        if any(s in k.lower() for s in ("password", "secret", "key", "token", "connection")):
+            out[k] = "***"
+        else:
+            out[k] = str(v) if not isinstance(v, (str, int, float, bool)) else v
+    return out
+
+
 def import_demo_company(
     db: Session,
     seed_dir: Path | None = None,

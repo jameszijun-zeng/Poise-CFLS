@@ -8,11 +8,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DataTable, fmtMoney, fmtPct } from "@/components/data-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { fmtMoney, fmtPct } from "@/components/data-table";
 import { apiFetch } from "@/lib/api";
 import { authOptions } from "@/lib/auth";
 
+import { AdapterImportButton } from "./adapter-import-button";
+import { CashFlowPanel } from "./cashflow-panel";
 import { ImportDemoButton } from "./import-button";
+import { ReadonlyWithCsv } from "./readonly-with-csv";
+import { ReserveRulePanel } from "./reserve-rule-panel";
 
 type Account = {
   id: string;
@@ -21,8 +26,8 @@ type Account = {
   bank_name: string | null;
   currency: string;
   account_type: string;
+  is_active: boolean;
 };
-
 type Balance = {
   id: number;
   account_id: string;
@@ -32,20 +37,6 @@ type Balance = {
   restricted_balance: string;
   currency: string;
 };
-
-type CashFlow = {
-  id: string;
-  direction: "inflow" | "outflow";
-  category: string;
-  source_type: string;
-  expected_date: string;
-  week_t: number | null;
-  amount: string;
-  certainty_layer: "deterministic" | "pattern" | "uncertain";
-  counterparty: string | null;
-  notes: string | null;
-};
-
 type Instrument = {
   id: string;
   code: string;
@@ -58,8 +49,8 @@ type Instrument = {
   redeemable: boolean;
   counterparty: string | null;
   finance_priority: number | null;
+  whitelisted: boolean;
 };
-
 type CreditLine = {
   id: string;
   bank_name: string;
@@ -70,28 +61,15 @@ type CreditLine = {
   rate: string;
 };
 
-type ReserveRule = {
-  id: string;
-  rule_type: string;
-  fixed_value: string | null;
-  rolling_weeks: number | null;
-};
-
-const CATEGORY_LABEL: Record<string, string> = {
-  sales_collection: "销售回款",
-  purchase_payment: "采购付款",
-  payroll: "薪酬",
-  tax: "税费",
-  interest: "利息",
-  principal_repay: "还本",
-  rent: "租金",
-  other: "其他",
-};
-
 const TIER_LABEL: Record<string, string> = {
   cash: "活钱层",
   stable: "稳健层",
   yield: "增益层",
+};
+const ACCT_TYPE_LABEL: Record<string, string> = {
+  basic: "基本户",
+  general: "一般户",
+  special: "专户",
 };
 
 export default async function DataPage() {
@@ -99,207 +77,182 @@ export default async function DataPage() {
   // @ts-expect-error -- extended session
   const token: string | undefined = session?.accessToken;
 
-  const [accounts, balances, cashflows, instruments, creditLines, reserveRules] =
-    await Promise.all([
-      apiFetch<Account[]>("/api/v1/data/accounts", { token }).catch(() => []),
-      apiFetch<Balance[]>("/api/v1/data/balances", { token }).catch(() => []),
-      apiFetch<CashFlow[]>("/api/v1/data/cashflows", { token }).catch(() => []),
-      apiFetch<Instrument[]>("/api/v1/data/instruments", { token }).catch(() => []),
-      apiFetch<CreditLine[]>("/api/v1/data/credit-lines", { token }).catch(() => []),
-      apiFetch<ReserveRule[]>("/api/v1/data/reserve-rules", { token }).catch(() => []),
-    ]);
+  const [accounts, balances, instruments, creditLines] = await Promise.all([
+    apiFetch<Account[]>("/api/v1/data/accounts", { token }).catch(() => []),
+    apiFetch<Balance[]>("/api/v1/data/balances", { token }).catch(() => []),
+    apiFetch<Instrument[]>("/api/v1/data/instruments", { token }).catch(() => []),
+    apiFetch<CreditLine[]>("/api/v1/data/credit-lines", { token }).catch(() => []),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">数据录入</h1>
           <p className="text-sm text-muted-foreground">
-            Phase 1 · 浏览已入库的现金流项、品种、授信、备付规则与余额。
-            CSV 上传与单表编辑 UI 将在后续 Phase 1 增量补齐。
+            6 张核心表 · 手工增删改 + CSV 批量上传 + 数据质量门校验
           </p>
         </div>
       </header>
 
+      {/* 种子导入 + 适配器入口 */}
       <Card>
         <CardHeader>
-          <CardTitle>种子数据导入</CardTitle>
-          <CardDescription>幂等 —— 已存在记录会被 upsert</CardDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle>批量数据导入</CardTitle>
+              <CardDescription>
+                演示环境一键导入 · 真实环境用适配器接入 ERP / 银企 / Excel
+              </CardDescription>
+            </div>
+            <AdapterImportButton />
+          </div>
         </CardHeader>
         <CardContent>
           <ImportDemoButton />
         </CardContent>
       </Card>
 
+      {/* 主体：6 表 tab */}
       <Card>
         <CardHeader>
-          <CardTitle>银行账户（{accounts.length}）</CardTitle>
+          <CardTitle>核心数据</CardTitle>
+          <CardDescription>
+            点 tab 切换；现金流支持完整手工 CRUD；其它表通过 CSV 上传批量管理
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <DataTable
-            rows={accounts}
-            columns={[
-              { header: "Code", cell: (r) => r.code },
-              { header: "名称", cell: (r) => r.name },
-              { header: "开户行", cell: (r) => r.bank_name ?? "-" },
-              { header: "类型", cell: (r) => r.account_type, align: "center" },
-              { header: "币种", cell: (r) => r.currency, align: "center" },
-            ]}
-          />
-        </CardContent>
-      </Card>
+          <Tabs defaultValue="cashflows">
+            <TabsList>
+              <TabsTrigger value="cashflows">现金流项</TabsTrigger>
+              <TabsTrigger value="instruments">投融资品种</TabsTrigger>
+              <TabsTrigger value="credit-lines">授信额度</TabsTrigger>
+              <TabsTrigger value="reserve-rules">备付规则</TabsTrigger>
+              <TabsTrigger value="accounts">银行账户</TabsTrigger>
+              <TabsTrigger value="balances">余额快照</TabsTrigger>
+            </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>期初余额快照（{balances.length}）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            rows={balances}
-            columns={[
-              { header: "账户 ID", cell: (r) => r.account_id.slice(0, 8) + "..." },
-              { header: "日期", cell: (r) => r.as_of_date },
-              { header: "余额", cell: (r) => fmtMoney(r.balance), align: "right" },
-              { header: "可用", cell: (r) => fmtMoney(r.available_balance), align: "right" },
-              { header: "受限", cell: (r) => fmtMoney(r.restricted_balance), align: "right" },
-            ]}
-          />
-        </CardContent>
-      </Card>
+            <TabsContent value="cashflows">
+              <CashFlowPanel />
+            </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>13 周现金流项（{cashflows.length}）</CardTitle>
-          <CardDescription>分层：确定 / 规律 / 不确定</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            rows={cashflows}
-            columns={[
-              { header: "W", cell: (r) => r.week_t ?? "-", align: "center", width: "3rem" },
-              { header: "日期", cell: (r) => r.expected_date },
-              {
-                header: "方向",
-                cell: (r) => (
-                  <Badge variant={r.direction === "inflow" ? "success" : "warning"}>
-                    {r.direction === "inflow" ? "收" : "付"}
-                  </Badge>
-                ),
-                align: "center",
-              },
-              { header: "类别", cell: (r) => CATEGORY_LABEL[r.category] ?? r.category },
-              { header: "金额", cell: (r) => fmtMoney(r.amount), align: "right" },
-              {
-                header: "层",
-                cell: (r) => (
-                  <Badge
-                    variant={
-                      r.certainty_layer === "deterministic"
-                        ? "primary"
-                        : r.certainty_layer === "pattern"
-                          ? "default"
-                          : "warning"
-                    }
-                  >
-                    {r.certainty_layer === "deterministic"
-                      ? "确定"
-                      : r.certainty_layer === "pattern"
-                        ? "规律"
-                        : "不确定"}
-                  </Badge>
-                ),
-                align: "center",
-              },
-              { header: "对手方", cell: (r) => r.counterparty ?? "-" },
-            ]}
-          />
-        </CardContent>
-      </Card>
+            <TabsContent value="instruments">
+              <ReadonlyWithCsv
+                rows={instruments}
+                table="instruments"
+                columns={[
+                  { header: "Code", cell: (r) => r.code },
+                  { header: "名称", cell: (r) => r.name },
+                  {
+                    header: "方向",
+                    cell: (r) => (
+                      <Badge variant={r.kind === "invest" ? "primary" : "warning"}>
+                        {r.kind === "invest" ? "投资" : "融资"}
+                      </Badge>
+                    ),
+                    align: "center",
+                  },
+                  {
+                    header: "分层 / 优先",
+                    cell: (r) =>
+                      r.kind === "invest"
+                        ? TIER_LABEL[r.liquidity_tier ?? ""] ?? "-"
+                        : `优先级 ${r.finance_priority ?? "-"}`,
+                  },
+                  { header: "年化", cell: (r) => fmtPct(r.rate), align: "right" },
+                  {
+                    header: "期限(周)",
+                    cell: (r) => r.tenor_options.join(",") || "-",
+                    align: "center",
+                  },
+                  {
+                    header: "起投",
+                    cell: (r) => (Number(r.min_amount) > 0 ? fmtMoney(r.min_amount) : "-"),
+                    align: "right",
+                  },
+                  {
+                    header: "白名单",
+                    cell: (r) =>
+                      r.whitelisted ? (
+                        <Badge variant="success">在</Badge>
+                      ) : (
+                        <Badge variant="default">已下架</Badge>
+                      ),
+                    align: "center",
+                  },
+                ]}
+              />
+            </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>投融资品种白名单（{instruments.length}）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            rows={instruments}
-            columns={[
-              { header: "Code", cell: (r) => r.code },
-              { header: "名称", cell: (r) => r.name },
-              {
-                header: "方向",
-                cell: (r) => (
-                  <Badge variant={r.kind === "invest" ? "primary" : "warning"}>
-                    {r.kind === "invest" ? "投资" : "融资"}
-                  </Badge>
-                ),
-                align: "center",
-              },
-              {
-                header: "分层 / 优先",
-                cell: (r) =>
-                  r.kind === "invest"
-                    ? TIER_LABEL[r.liquidity_tier ?? ""] ?? "-"
-                    : `优先级 ${r.finance_priority ?? "-"}`,
-              },
-              { header: "年化", cell: (r) => fmtPct(r.rate), align: "right" },
-              { header: "期限(周)", cell: (r) => r.tenor_options.join(",") || "-", align: "center" },
-              {
-                header: "起投",
-                cell: (r) => (Number(r.min_amount) > 0 ? fmtMoney(r.min_amount) : "-"),
-                align: "right",
-              },
-            ]}
-          />
-        </CardContent>
-      </Card>
+            <TabsContent value="credit-lines">
+              <ReadonlyWithCsv
+                rows={creditLines}
+                table="credit_lines"
+                columns={[
+                  { header: "授信编号", cell: (r) => r.code },
+                  { header: "银行", cell: (r) => r.bank_name },
+                  { header: "额度", cell: (r) => fmtMoney(r.limit_amount), align: "right" },
+                  { header: "已用", cell: (r) => fmtMoney(r.used_amount), align: "right" },
+                  {
+                    header: "可用",
+                    cell: (r) => (
+                      <span className="font-medium text-success">
+                        {fmtMoney(r.available_amount)}
+                      </span>
+                    ),
+                    align: "right",
+                  },
+                  { header: "成本", cell: (r) => fmtPct(r.rate), align: "right" },
+                ]}
+              />
+            </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>授信额度（{creditLines.length}）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            rows={creditLines}
-            columns={[
-              { header: "授信编号", cell: (r) => r.code },
-              { header: "银行", cell: (r) => r.bank_name },
-              { header: "额度", cell: (r) => fmtMoney(r.limit_amount), align: "right" },
-              { header: "已用", cell: (r) => fmtMoney(r.used_amount), align: "right" },
-              {
-                header: "可用",
-                cell: (r) => (
-                  <span className="font-medium text-success">{fmtMoney(r.available_amount)}</span>
-                ),
-                align: "right",
-              },
-              { header: "成本", cell: (r) => fmtPct(r.rate), align: "right" },
-            ]}
-          />
-        </CardContent>
-      </Card>
+            <TabsContent value="reserve-rules">
+              <ReserveRulePanel />
+            </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>备付金规则</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            rows={reserveRules}
-            columns={[
-              { header: "规则类型", cell: (r) => r.rule_type },
-              {
-                header: "定值",
-                cell: (r) => (r.fixed_value ? fmtMoney(r.fixed_value) : "-"),
-                align: "right",
-              },
-              {
-                header: "滚动周数",
-                cell: (r) => (r.rolling_weeks != null ? `${r.rolling_weeks} 周` : "-"),
-                align: "center",
-              },
-            ]}
-          />
+            <TabsContent value="accounts">
+              <ReadonlyWithCsv
+                rows={accounts}
+                table="accounts"
+                columns={[
+                  { header: "Code", cell: (r) => r.code },
+                  { header: "名称", cell: (r) => r.name },
+                  { header: "开户行", cell: (r) => r.bank_name ?? "-" },
+                  {
+                    header: "类型",
+                    cell: (r) => ACCT_TYPE_LABEL[r.account_type] ?? r.account_type,
+                    align: "center",
+                  },
+                  { header: "币种", cell: (r) => r.currency, align: "center" },
+                  {
+                    header: "状态",
+                    cell: (r) =>
+                      r.is_active ? (
+                        <Badge variant="success">激活</Badge>
+                      ) : (
+                        <Badge variant="default">停用</Badge>
+                      ),
+                    align: "center",
+                  },
+                ]}
+              />
+            </TabsContent>
+
+            <TabsContent value="balances">
+              <ReadonlyWithCsv
+                rows={balances}
+                table="balances"
+                columns={[
+                  { header: "账户 ID", cell: (r) => r.account_id.slice(0, 8) + "..." },
+                  { header: "日期", cell: (r) => r.as_of_date },
+                  { header: "余额", cell: (r) => fmtMoney(r.balance), align: "right" },
+                  { header: "可用", cell: (r) => fmtMoney(r.available_balance), align: "right" },
+                  { header: "受限", cell: (r) => fmtMoney(r.restricted_balance), align: "right" },
+                ]}
+              />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

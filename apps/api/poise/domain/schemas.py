@@ -132,6 +132,94 @@ class ReserveRuleOut(BaseModel):
     rolling_weeks: int | None
 
 
+# ----- Phase 1 增强：手工 CRUD 输入 schemas（POST/PATCH 通用） -----
+# 设计：所有字段可选（PATCH 友好）；POST 时由 service 层校验必填集合
+
+
+class AccountUpsert(BaseModel):
+    code: str | None = None
+    name: str | None = None
+    bank_name: str | None = None
+    account_number: str | None = None
+    currency: str | None = None
+    account_type: str | None = None  # basic / general / special
+    is_active: bool | None = None
+    notes: str | None = None
+
+
+class BalanceSnapshotUpsert(BaseModel):
+    account_id: str | None = None
+    as_of_date: date | None = None
+    balance: Decimal | None = None
+    available_balance: Decimal | None = None
+    restricted_balance: Decimal | None = None
+    currency: str | None = None
+    source: str | None = None
+
+
+class CashFlowItemUpsert(BaseModel):
+    account_id: str | None = None
+    direction: str | None = None  # inflow / outflow
+    category: str | None = None
+    source_type: str | None = None
+    expected_date: date | None = None
+    week_t: int | None = Field(default=None, ge=1, le=13)
+    amount: Decimal | None = None
+    currency: str | None = None
+    certainty_layer: str | None = None
+    counterparty: str | None = None
+    notes: str | None = None
+
+
+class InstrumentUpsert(BaseModel):
+    code: str | None = None
+    name: str | None = None
+    kind: str | None = None  # invest / finance
+    liquidity_tier: str | None = None  # cash / stable / yield
+    rate: Decimal | None = None  # 年化（小数，如 0.023 表 2.3%）
+    tenor_options: list[int] | None = None
+    min_amount: Decimal | None = None
+    max_amount: Decimal | None = None
+    redeemable: bool | None = None
+    redeem_cost: Decimal | None = None
+    counterparty: str | None = None
+    whitelisted: bool | None = None
+    finance_priority: int | None = None
+    currency: str | None = None
+    notes: str | None = None
+
+
+class CreditLineUpsert(BaseModel):
+    instrument_id: str | None = None
+    bank_name: str | None = None
+    code: str | None = None
+    limit_amount: Decimal | None = None
+    used_amount: Decimal | None = None
+    rate: Decimal | None = None
+    expires_at: date | None = None
+    notes: str | None = None
+
+
+class ReserveRuleUpsert(BaseModel):
+    rule_type: str | None = None  # fixed / rolling_coverage
+    fixed_value: Decimal | None = None
+    rolling_weeks: int | None = Field(default=None, ge=1, le=13)
+    notes: str | None = None
+
+
+# ----- Phase 1 增强：CSV 上传 -----
+
+
+class CsvUploadPreview(BaseModel):
+    """上传第一步：解析 + 校验，但不写库。"""
+
+    table: str
+    total_rows: int
+    valid_rows: int
+    sample: list[dict[str, Any]]   # 前 5 行预览
+    issues: list["ImportIssue"]
+
+
 # ----- 数据质量门反馈 -----
 
 
