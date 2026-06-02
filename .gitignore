@@ -13,6 +13,13 @@
 .env.*.local
 !.env.example
 
+# 内部演示材料（不进公开仓库）
+# 这些文件本地可保留方便使用，但不应推到 GitHub
+doc/Demo录制脚本_5分钟.md
+doc/稳盈Poise_汇报.pptx
+doc/第七组：稳盈Poise_路演.pptx
+doc/稳盈Poise_投资人deck.pptx
+
 # Python
 __pycache__/
 *.pyc
